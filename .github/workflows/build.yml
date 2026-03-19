@@ -1,0 +1,91 @@
+name: Build and push RISC-V image
+
+on:
+  schedule:
+    # Check for new TriliumNext releases every night at 02:00 UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    # Allow manual trigger from GitHub Actions UI
+
+jobs:
+  check-and-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get latest TriliumNext stable release tag
+        id: trilium
+        run: |
+          TAG=$(curl -s https://api.github.com/repos/TriliumNext/Trilium/releases/latest \
+            | jq -r '.tag_name')
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "Latest TriliumNext release: $TAG"
+
+      - name: Get last built tag (stored in repo variable)
+        id: last_built
+        run: |
+          echo "tag=${{ vars.LAST_BUILT_TAG }}" >> $GITHUB_OUTPUT
+
+      - name: Skip if already built
+        if: steps.trilium.outputs.tag == steps.last_built.outputs.tag
+        run: |
+          echo "Already built ${{ steps.trilium.outputs.tag }}, skipping."
+          exit 0
+
+      - name: Set up QEMU
+        if: steps.trilium.outputs.tag != steps.last_built.outputs.tag
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: riscv64
+
+      - name: Set up Docker Buildx
+        if: steps.trilium.outputs.tag != steps.last_built.outputs.tag
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        if: steps.trilium.outputs.tag != steps.last_built.outputs.tag
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push
+        if: steps.trilium.outputs.tag != steps.last_built.outputs.tag
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/riscv64
+          push: true
+          # Publishes two tags: specific version and latest
+          tags: |
+            12345qwert123456/trilium-riscv64:${{ steps.trilium.outputs.tag }}
+            12345qwert123456/trilium-riscv64:latest
+          build-args: |
+            TRILIUM_TAG=${{ steps.trilium.outputs.tag }}
+
+      - name: Create GitHub Release
+        if: steps.trilium.outputs.tag != steps.last_built.outputs.tag
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.trilium.outputs.tag }}-riscv64
+          name: TriliumNext ${{ steps.trilium.outputs.tag }} — RISC-V (riscv64)
+          body: |
+            Automated RISC-V build for [TriliumNext ${{ steps.trilium.outputs.tag }}](https://github.com/TriliumNext/Trilium/releases/tag/${{ steps.trilium.outputs.tag }}).
+
+            **Docker Hub:**
+            ```
+            docker pull 12345qwert123456/trilium-riscv64:${{ steps.trilium.outputs.tag }}
+            ```
+            or
+            ```
+            docker pull 12345qwert123456/trilium-riscv64:latest
+            ```
+
+      - name: Save built tag to repository variable
+        if: steps.trilium.outputs.tag != steps.last_built.outputs.tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh variable set LAST_BUILT_TAG --body "${{ steps.trilium.outputs.tag }}"
