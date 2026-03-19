@@ -13,7 +13,9 @@
 # =============================================================================
 # Stage 1 — Backend builder (runs natively on the target platform: riscv64)
 # =============================================================================
+ARG TRILIUM_TAG=main
 FROM alpine:3.21 AS backend_builder
+ARG TRILIUM_TAG
 
 RUN apk add --no-cache \
         git nodejs npm python3 make g++ gcc \
@@ -32,7 +34,7 @@ RUN printf '{"dependencies":{"better-sqlite3":"12.8.0"}}' > package.json && \
 
 # -- Clone source and install monorepo dependencies ---------------------------
 WORKDIR /build
-RUN git clone --depth 1 https://github.com/TriliumNext/Trilium.git .
+RUN git clone --depth 1 --branch ${TRILIUM_TAG} https://github.com/TriliumNext/Trilium.git .
 
 # --ignore-scripts skips native postinstall hooks; the .node binary already
 # built in /native will be copied into the final image separately.
@@ -70,7 +72,7 @@ RUN cp -r apps/server/src/assets apps/server/dist/assets
 # Docker only pulls the image layers and copies files from them.
 # No AMD64 code is executed, so QEMU is NOT required.
 # =============================================================================
-FROM --platform=linux/amd64 ghcr.io/triliumnext/trilium:main AS frontend_source
+FROM --platform=linux/amd64 ghcr.io/triliumnext/trilium:${TRILIUM_TAG} AS frontend_source
 
 # =============================================================================
 # Stage 3 — Final runtime image (riscv64)
