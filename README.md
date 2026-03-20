@@ -2,10 +2,29 @@
 
 ![Platform](https://img.shields.io/badge/platform-linux%2Friscv64-blue)
 ![License](https://img.shields.io/badge/license-AGPL--3.0-green)
+![Docker Pulls](https://img.shields.io/docker/pulls/12345qwert123456/trilium-riscv64)
 
 A community Dockerfile for running [TriliumNext Notes](https://github.com/TriliumNext/Trilium) on `linux/riscv64` hardware (e.g. OrangePi RV2, StarFive VisionFive 2, Milk-V Pioneer, QEMU riscv64).
 
 The official TriliumNext image does not publish a `riscv64` manifest, and a straight cross-compilation fails due to several platform-specific issues described below. This Dockerfile works around all of them.
+
+## Quick start (Docker Hub)
+
+If you just want to run Trilium without building the image yourself:
+```bash
+docker pull 12345qwert123456/trilium-riscv64:latest
+```
+
+Then run:
+```bash
+docker run -d \
+  --name trilium \
+  -p 8080:8080 \
+  -v ~/trilium-data:/home/node/trilium-data \
+  12345qwert123456/trilium-riscv64:latest
+```
+
+And open http://localhost:8080 in your browser.
 
 ## How it works
 
