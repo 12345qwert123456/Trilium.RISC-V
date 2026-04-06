@@ -12,8 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      actions: write
-      
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -26,36 +25,38 @@ jobs:
           echo "tag=$TAG" >> $GITHUB_OUTPUT
           echo "Latest TriliumNext release: $TAG"
 
-      - name: Get last built tag (stored in repo variable)
-        id: last_built
+      - name: Check if release already exists
+        id: check
         run: |
-          echo "tag=${{ vars.LAST_BUILT_TAG }}" >> $GITHUB_OUTPUT
-
-      - name: Skip if already built
-        if: steps.trilium.outputs.tag == steps.last_built.outputs.tag
-        run: |
-          echo "Already built ${{ steps.trilium.outputs.tag }}, skipping."
-          exit 0
+          HTTP=$(curl -s -o /dev/null -w "%{http_code}" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/${{ steps.trilium.outputs.tag }}-riscv64")
+          if [ "$HTTP" = "200" ]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "Release ${{ steps.trilium.outputs.tag }}-riscv64 already exists, skipping."
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+            echo "No release found, will build ${{ steps.trilium.outputs.tag }}."
+          fi
 
       - name: Set up QEMU
-        if: steps.trilium.outputs.tag != steps.last_built.outputs.tag
+        if: steps.check.outputs.skip != 'true'
         uses: docker/setup-qemu-action@v3
         with:
           platforms: riscv64
 
       - name: Set up Docker Buildx
-        if: steps.trilium.outputs.tag != steps.last_built.outputs.tag
+        if: steps.check.outputs.skip != 'true'
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to Docker Hub
-        if: steps.trilium.outputs.tag != steps.last_built.outputs.tag
+        if: steps.check.outputs.skip != 'true'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push
-        if: steps.trilium.outputs.tag != steps.last_built.outputs.tag
+        if: steps.check.outputs.skip != 'true'
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -69,7 +70,7 @@ jobs:
             TRILIUM_TAG=${{ steps.trilium.outputs.tag }}
 
       - name: Create GitHub Release
-        if: steps.trilium.outputs.tag != steps.last_built.outputs.tag
+        if: steps.check.outputs.skip != 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.trilium.outputs.tag }}-riscv64
@@ -85,10 +86,3 @@ jobs:
             ```
             docker pull 12345qwert123456/trilium-riscv64:latest
             ```
-
-      - name: Save built tag to repository variable
-        if: steps.trilium.outputs.tag != steps.last_built.outputs.tag
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh variable set LAST_BUILT_TAG --body "${{ steps.trilium.outputs.tag }}"
