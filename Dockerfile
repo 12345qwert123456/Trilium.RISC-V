@@ -21,7 +21,8 @@ RUN apk add --no-cache \
         git nodejs npm python3 make g++ gcc \
         autoconf libtool build-base py3-setuptools && \
     npm install -g corepack && \
-    corepack enable
+    corepack enable && \
+    corepack prepare pnpm@9.15.9 --activate
 
 # -- Build better-sqlite3 in isolation ----------------------------------------
 # Mirrors the official apps/server/docker/package.json approach.
@@ -30,7 +31,7 @@ RUN apk add --no-cache \
 WORKDIR /native
 RUN printf '{"dependencies":{"better-sqlite3":"12.8.0"}}' > package.json && \
     printf 'onlyBuiltDependencies:\n- better-sqlite3\n' > pnpm-workspace.yaml && \
-    pnpm install --no-frozen-lockfile --prod --shamefully-hoist --allow-build=better-sqlite3
+    pnpm install --no-frozen-lockfile --prod --shamefully-hoist
 
 # -- Clone source and install monorepo dependencies ---------------------------
 WORKDIR /build
