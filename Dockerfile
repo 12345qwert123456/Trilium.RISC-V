@@ -30,7 +30,7 @@ RUN apk add --no-cache \
 # hoisted to the top-level node_modules and are easy to copy later.
 WORKDIR /native
 RUN printf '{"dependencies":{"better-sqlite3":"12.8.0"}}' > package.json && \
-    printf 'onlyBuiltDependencies:\n- better-sqlite3\n' > pnpm-workspace.yaml && \
+    printf 'packages:\n- .\nonlyBuiltDependencies:\n- better-sqlite3\n' > pnpm-workspace.yaml && \
     pnpm install --no-frozen-lockfile --prod --shamefully-hoist
 
 # -- Clone source and install monorepo dependencies ---------------------------
