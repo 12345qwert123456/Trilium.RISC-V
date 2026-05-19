@@ -30,7 +30,7 @@ RUN apk add --no-cache \
 WORKDIR /native
 RUN printf '{"dependencies":{"better-sqlite3":"12.8.0"}}' > package.json && \
     printf 'onlyBuiltDependencies:\n- better-sqlite3\n' > pnpm-workspace.yaml && \
-    pnpm install --no-frozen-lockfile --prod --shamefully-hoist
+    pnpm install --no-frozen-lockfile --prod --shamefully-hoist --allow-build=better-sqlite3
 
 # -- Clone source and install monorepo dependencies ---------------------------
 WORKDIR /build
