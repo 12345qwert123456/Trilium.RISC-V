@@ -58,11 +58,13 @@ RUN cd apps/server && \
         --external:electron \
         --external:@electron/remote \
         --external:better-sqlite3 \
+        --external:@triliumnext/core/src/assets/schema.sql \
         "--external:./xhr-sync-worker.js" \
         --external:vite \
         --loader:.css=text \
         --loader:.ejs=text \
         "--define:process.env.NODE_ENV=\"production\"" \
+        "--define:import.meta.url=\"file:///usr/src/app/main.cjs\"" \
         --minify
 
 # Copy server-side assets (EJS views, icons, DB initialisation SQL scripts)
@@ -95,6 +97,10 @@ COPY --from=backend_builder /build/apps/server/dist .
 COPY --from=backend_builder /native/node_modules/better-sqlite3   ./node_modules/better-sqlite3
 COPY --from=backend_builder /native/node_modules/bindings          ./node_modules/bindings
 COPY --from=backend_builder /native/node_modules/file-uri-to-path  ./node_modules/file-uri-to-path
+
+# Real schema.sql that require.resolve() looks up at runtime
+COPY --from=backend_builder /build/packages/trilium-core/src/assets \
+     ./node_modules/@triliumnext/core/src/assets
 
 # CKEditor content CSS (required for note and share-page rendering)
 COPY --from=backend_builder /build/node_modules/ckeditor5/dist/ckeditor5-content.css .
