@@ -27,8 +27,8 @@ RUN apk add --no-cache \
 # Newer pnpm releases (10+) ship a prebuilt native binary per platform, and the
 # linux-riscv64 build is glibc-linked, which cannot run on this musl-based
 # Alpine image. Without this, corepack reads the cloned repo's package.json
-# "packageManager" field (pnpm@12.5.1) and tries to download that instead of
-# using the pnpm@9.15.9 activated above.
+# "packageManager" field and tries to download whatever version it pins
+# instead of using the version explicitly activated below.
 ENV COREPACK_ENABLE_PROJECT_SPEC=0
 
 # -- Build better-sqlite3 in isolation ----------------------------------------
@@ -43,6 +43,15 @@ RUN printf '{"dependencies":{"better-sqlite3":"12.8.0"}}' > package.json && \
 # -- Clone source and install monorepo dependencies ---------------------------
 WORKDIR /build
 RUN git clone --depth 1 --branch ${TRILIUM_TAG} https://github.com/TriliumNext/Trilium.git .
+
+# pnpm@9.15.9 (used for the isolated better-sqlite3 install above) is too old
+# to correctly resolve/hoist this monorepo's workspace: it silently leaves
+# packages like ckeditor5 buried in the .pnpm virtual store instead of
+# symlinked at the workspace root, breaking later COPY steps that read from
+# node_modules/<pkg>. pnpm@11.22.0 is the last version confirmed to hoist
+# correctly here and still run under corepack on musl/riscv64 (12.x's
+# self-installer downloads a glibc-only riscv64 binary, see above).
+RUN corepack prepare pnpm@11.22.0 --activate
 
 # --ignore-scripts skips native postinstall hooks; the .node binary already
 # built in /native will be copied into the final image separately.
