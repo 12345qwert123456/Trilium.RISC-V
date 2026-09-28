@@ -24,6 +24,13 @@ RUN apk add --no-cache \
     corepack enable && \
     corepack prepare pnpm@9.15.9 --activate
 
+# Newer pnpm releases (10+) ship a prebuilt native binary per platform, and the
+# linux-riscv64 build is glibc-linked, which cannot run on this musl-based
+# Alpine image. Without this, corepack reads the cloned repo's package.json
+# "packageManager" field (pnpm@12.5.1) and tries to download that instead of
+# using the pnpm@9.15.9 activated above.
+ENV COREPACK_ENABLE_PROJECT_SPEC=0
+
 # -- Build better-sqlite3 in isolation ----------------------------------------
 # Mirrors the official apps/server/docker/package.json approach.
 # --shamefully-hoist ensures that peer deps (bindings, file-uri-to-path) are
