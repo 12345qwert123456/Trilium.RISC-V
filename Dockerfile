@@ -55,7 +55,6 @@ RUN pnpm install --no-frozen-lockfile --ignore-scripts
 RUN cd apps/server && \
     npx esbuild \
         src/main.ts \
-        src/docker_healthcheck.ts \
         --tsconfig=tsconfig.app.json \
         --platform=node \
         --bundle \
@@ -77,6 +76,10 @@ RUN cd apps/server && \
 # Copy server-side assets (EJS views, icons, DB initialisation SQL scripts)
 RUN cp -r apps/server/src/assets apps/server/dist/assets
 
+# The healthcheck is a plain shell script upstream (no longer TS/esbuild), so
+# it is copied as-is rather than bundled.
+RUN cp apps/server/docker_healthcheck.sh apps/server/dist/docker_healthcheck.sh
+
 # =============================================================================
 # Stage 2 — Frontend source (AMD64, no RUN commands)
 # Docker only pulls the image layers and copies files from them.
@@ -90,7 +93,8 @@ FROM --platform=linux/amd64 ghcr.io/triliumnext/trilium:${TRILIUM_TAG} AS fronte
 FROM alpine:3.21
 
 # Install runtime deps, create the app user and data directory in one layer
-RUN apk add --no-cache nodejs su-exec shadow && \
+# curl is required by docker_healthcheck.sh to probe the running server.
+RUN apk add --no-cache nodejs su-exec shadow curl && \
     adduser -s /bin/false node || true && \
     mkdir -p /home/node/trilium-data && \
     chown -R node:node /home/node/trilium-data
@@ -133,4 +137,4 @@ EXPOSE 8080
 ENV TRILIUM_DATA_DIR=/home/node/trilium-data
 
 CMD ["/start.sh"]
-HEALTHCHECK --start-period=10s CMD exec su-exec node node /usr/src/app/docker_healthcheck.cjs
+HEALTHCHECK --start-period=10s CMD exec su-exec node sh /usr/src/app/docker_healthcheck.sh
